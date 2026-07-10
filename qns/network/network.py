@@ -212,7 +212,7 @@ class QuantumNetwork(object):
         src.add_request(req)
         dest.add_request(req)
 
-    def random_requests(self, number: int, allow_overlay: bool = False, attr: Dict = {}):
+    def random_requests(self, number: int, allow_overlay: bool = False, attr: Dict = {}, hop_limit: int = -1):
         """
         Generate random requests
 
@@ -234,11 +234,17 @@ class QuantumNetwork(object):
             n.clear_request()
         self.requests.clear()
 
-        for _ in range(number):
+        while len(self.requests) < number:
             while True:
                 src_idx = get_randint(0, nnodes - 1)
                 dest_idx = get_randint(0, nnodes - 1)
                 if src_idx == dest_idx:
+                    continue
+                if not self.route.route_table:
+                    self.build_route()
+                hop = self.route.route_table[self.nodes[src_idx]][self.nodes[dest_idx]][0]
+                if hop_limit > 0 and hop < hop_limit:
+                    # print(hop, hop_limit)
                     continue
                 if not allow_overlay and src_idx in used_nodes:
                     continue
