@@ -165,14 +165,14 @@ class MixedStateEntanglement(BaseEntanglement, QuantumModel):
         self.d = 0.25 + (self.d-0.25) * np.exp(-decoherence_rate * length)
         self.normalized()
 
-    def to_qubits(self) -> List[Qubit]:
+    def to_qubits(self, backend: Optional[str] = None) -> List[Qubit]:
         if self.is_decoherenced:
-            q0 = Qubit(state=QUBIT_STATE_P, name="q0")
-            q1 = Qubit(state=QUBIT_STATE_P, name="q1")
+            q0 = Qubit(state=QUBIT_STATE_P, name="q0", backend=backend)
+            q1 = Qubit(state=QUBIT_STATE_P, name="q1", backend=backend)
             return [q0, q1]
 
-        q0 = Qubit(state=QUBIT_STATE_0, name="q0")
-        q1 = Qubit(state=QUBIT_STATE_0, name="q1")
+        q0 = Qubit(state=QUBIT_STATE_0, name="q0", backend=backend)
+        q1 = Qubit(state=QUBIT_STATE_0, name="q1", backend=backend)
 
         phi_p = 1/np.sqrt(2) * np.array([[1], [0], [0], [1]])
         phi_n = 1/np.sqrt(2) * np.array([[1], [0], [0], [-1]])
@@ -181,7 +181,7 @@ class MixedStateEntanglement(BaseEntanglement, QuantumModel):
         rho = self.a * np.dot(phi_p, phi_p.T.conjugate()) + self.b * np.dot(psi_p, psi_p.T.conjugate())\
             + self.c * np.dot(psi_n, psi_n.T.conjugate()) + self.d * np.dot(phi_n, phi_n.T.conjugate())
 
-        qs = QState([q0, q1], rho=rho)
+        qs = QState([q0, q1], rho=rho, backend=backend)
         q0.state = qs
         q1.state = qs
         self.is_decoherenced = True

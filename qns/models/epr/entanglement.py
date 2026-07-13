@@ -61,23 +61,26 @@ class BaseEntanglement(object):
         """
         raise NotImplementedError
 
-    def to_qubits(self) -> List[Qubit]:
+    def to_qubits(self, backend: Optional[str] = None) -> List[Qubit]:
         """
         Transport the entanglement into a pair of qubits based on the fidelity.
         Suppose the first qubit is [1/sqrt(2), 1/sqrt(2)].H
+
+        Args:
+            backend (str): the quantum state backend, ``numpy`` or ``qiskit``
 
         Returns:
             A list of two qubits
         """
         if self.is_decoherenced:
-            q0 = Qubit(state=QUBIT_STATE_P, name="q0")
-            q1 = Qubit(state=QUBIT_STATE_P, name="q1")
+            q0 = Qubit(state=QUBIT_STATE_P, name="q0", backend=backend)
+            q1 = Qubit(state=QUBIT_STATE_P, name="q1", backend=backend)
             return [q0, q1]
-        q0 = Qubit(state=QUBIT_STATE_0, name="q0")
-        q1 = Qubit(state=QUBIT_STATE_0, name="q1")
+        q0 = Qubit(state=QUBIT_STATE_0, name="q0", backend=backend)
+        q1 = Qubit(state=QUBIT_STATE_0, name="q1", backend=backend)
         a = np.sqrt(self.fidelity / 2)
         b = np.sqrt((1 - self.fidelity) / 2)
-        qs = QState([q0, q1], state=np.array([[a], [b], [b], [a]]))
+        qs = QState([q0, q1], state=np.array([[a], [b], [b], [a]]), backend=backend)
         q0.state = qs
         q1.state = qs
         self.is_decoherenced = True

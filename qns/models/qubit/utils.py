@@ -54,8 +54,7 @@ def joint(qubit1, qubit2) -> None:
         raise QGateStateJointError
 
     from qns.models.qubit.qubit import QState
-    nq = QState(qubit1.state.qubits+qubit2.state.qubits,
-                rho=kron(qubit1.state.rho, qubit2.state.rho))
+    nq = QState.join(qubit1.state, qubit2.state)
     for q in nq.qubits:
         q.state = nq
 

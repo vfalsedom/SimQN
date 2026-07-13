@@ -91,7 +91,7 @@ def DissipationError(self, p: Optional[float] = 0, **kwargs):
     real_p = get_rand()
     if real_p < p:
         self.measure()
-        self.state = QState([self], state=QUBIT_STATE_0)
+        self.state = QState([self], state=QUBIT_STATE_0, backend=self.backend_name)
 
 
 def ErrorWithTime(ErrorModel):

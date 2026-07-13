@@ -20,10 +20,11 @@ import numpy as np
 
 from qns.models.qubit.const import QUBIT_STATE_0, QUBIT_STATE_1, \
         QUBIT_STATE_P, QUBIT_STATE_N, QUBIT_STATE_L, QUBIT_STATE_R
-from qns.models.qubit.utils import single_gate_expand, partial_trace, kron
+from qns.models.qubit.backends import create_backend, get_default_backend
+from qns.models.qubit.backends.base import QuantumStateBackend
 from qns.models.core.backend import QuantumModel
 from qns.models.qubit.errors import QStateBaseError, QStateQubitNotInStateError, \
-                                    QStateSizeNotMatchError, OperatorNotMatchError
+                                    QStateSizeNotMatchError, OperatorNotMatchError, QGateStateJointError
 from qns.utils.rnd import get_rand
 
 
@@ -31,31 +32,73 @@ class QState(object):
     """
     QState is the state of one (or multiple) qubits
     """
-    def __init__(self, qubits: List["Qubit"] = [], state: Optional[np.ndarray] = QUBIT_STATE_0,
-                 rho: Optional[np.ndarray] = None, name: Optional[str] = None):
+    def __init__(self, qubits: Optional[List["Qubit"]] = None, state: Optional[np.ndarray] = QUBIT_STATE_0,
+                 rho: Optional[np.ndarray] = None, name: Optional[str] = None,
+                 backend: Optional[str] = None, backend_state: Optional[QuantumStateBackend] = None):
         """
         Args:
             qubits (List[Qubit]): a list of qubits in this quantum state
             state: the state vector of this state, either ``state`` or ``rho`` can be used to present a state
             rho: the density matrix of this state, either ``state`` or ``rho`` can be used to present a state
             name (str): the name of this state
+            backend (str): the quantum state backend, ``numpy`` or ``qiskit``
         """
+        qubits = [] if qubits is None else qubits
         self.num = len(qubits)
         self.name = name
         self.qubits = qubits
-        self.rho = None
+
+        if backend_state is not None:
+            if backend_state.num != self.num:
+                raise QStateSizeNotMatchError
+            self._backend = backend_state
+            return
+
+        if backend is None:
+            backend_names = {qubit.state.backend_name for qubit in qubits
+                             if hasattr(qubit, "state") and hasattr(qubit.state, "backend_name")}
+            if len(backend_names) == 1:
+                backend = backend_names.pop()
+            elif len(backend_names) > 1:
+                raise QGateStateJointError
+            else:
+                backend = get_default_backend()
 
         if rho is None:
-            if len(state) != 2**self.num:
+            if state is None or len(state) != 2**self.num:
                 raise QStateSizeNotMatchError
-            self.rho = np.dot(state, state.T.conjugate())
         else:
-            if self.num != np.log2(rho.shape[0]) or self.num != np.log2(rho.shape[1]):
+            if rho.shape != (2 ** self.num, 2 ** self.num):
                 raise QStateSizeNotMatchError
             if abs(1 - rho.trace()) > 0.0000000001:
-                # trace = 1
                 raise QStateSizeNotMatchError
-            self.rho = rho
+        self._backend = create_backend(self.num, state=state, rho=rho, backend=backend)
+
+    @property
+    def rho(self) -> np.ndarray:
+        """Return the density matrix for compatibility with the NumPy backend API."""
+        return self._backend.data
+
+    @rho.setter
+    def rho(self, rho: np.ndarray) -> None:
+        if rho.shape != (2 ** self.num, 2 ** self.num) or abs(1 - rho.trace()) > 0.0000000001:
+            raise QStateSizeNotMatchError
+        self._backend = create_backend(self.num, rho=rho, backend=self.backend_name)
+
+    @property
+    def backend(self) -> QuantumStateBackend:
+        return self._backend
+
+    @property
+    def backend_name(self) -> str:
+        return self._backend.name
+
+    @classmethod
+    def join(cls, state1: "QState", state2: "QState") -> "QState":
+        if state1.backend_name != state2.backend_name:
+            raise QGateStateJointError
+        backend_state = state1.backend.tensor(state2.backend)
+        return cls(state1.qubits + state2.qubits, backend_state=backend_state)
 
     def measure(self, qubit: "Qubit" = None, base: str = "Z") -> int:
         """
@@ -68,10 +111,6 @@ class QState(object):
             0: QUBIT_STATE_0 state
             1: QUBIT_STATE_1 state
         """
-        M_0 = None
-        M_1 = None
-        S_0 = None
-        S_1 = None
         if base == "Z":
             M_0 = np.array([[1, 0], [0, 0]])
             M_1 = np.array([[0, 0], [0, 1]])
@@ -92,38 +131,29 @@ class QState(object):
 
         try:
             idx = self.qubits.index(qubit)
-            shift = self.num - idx - 1
-            assert (shift >= 0)
-        except AssertionError:
+        except ValueError:
             raise QStateQubitNotInStateError
-
-        Full_M_0 = np.array([[1]])
-        Full_M_1 = np.array([[1]])
-        for i in range(self.num):
-            if i == idx:
-                Full_M_0 = kron(Full_M_0, M_0)
-                Full_M_1 = kron(Full_M_1, M_1)
-            else:
-                Full_M_0 = kron(Full_M_0, np.array([[1, 0], [0, 1]]))
-                Full_M_1 = kron(Full_M_1, np.array([[1, 0], [0, 1]]))
-
-        poss_0 = np.trace(np.dot(Full_M_0.T.conjugate(), np.dot(Full_M_0, self.rho)))
+        poss_0, poss_1 = self._backend.probabilities(idx, [M_0, M_1])
+        total = poss_0 + poss_1
+        poss_0 = min(1.0, max(0.0, poss_0 / total))
+        poss_1 = 1.0 - poss_0
         rn = get_rand()
 
         if rn < poss_0:
             ret = 0
             ret_s = S_0
-            self.rho = np.dot(Full_M_0, np.dot(self.rho, Full_M_0.T.conjugate())) / poss_0
+            collapsed = self._backend.collapse(idx, M_0, poss_0)
         else:
             ret = 1
             ret_s = S_1
-            self.rho = np.dot(Full_M_1, np.dot(self.rho, Full_M_1.T.conjugate())) / (1-poss_0)
+            collapsed = self._backend.collapse(idx, M_1, poss_1)
 
-        self.rho = partial_trace(self.rho, idx)
+        backend_name = self.backend_name
+        self._backend = collapsed.partial_trace(idx)
         self.num -= 1
         self.qubits.remove(qubit)
 
-        ns = QState([qubit], state=ret_s)
+        ns = QState([qubit], state=ret_s, backend=backend_name)
         qubit.state = ns
         return ret
 
@@ -136,13 +166,19 @@ class QState(object):
         Raises:
             OperatorNotMatchError
         """
-        operator_size = operator.shape
-        if operator_size == (2**self.num, 2**self.num):
-            # joint qubit operate
-            full_operator = operator
-        else:
+        if operator.shape != (2**self.num, 2**self.num):
             raise OperatorNotMatchError
-        self.rho = np.dot(full_operator, np.dot(self.rho, full_operator.T.conjugate()))
+        self._backend = self._backend.evolve(operator)
+
+    def operate_on(self, operator: np.ndarray, qubits: List["Qubit"]):
+        """Transform selected qubits using an operator in SimQN qubit order."""
+        try:
+            qargs = [self.qubits.index(qubit) for qubit in qubits]
+        except ValueError:
+            raise QStateQubitNotInStateError
+        if operator.shape != (2 ** len(qargs), 2 ** len(qargs)):
+            raise OperatorNotMatchError
+        self._backend = self._backend.evolve(operator, qargs)
 
     def stochastic_operate(self, list_operators: List[np.ndarray] = [], list_p: List[float] = []):
         """
@@ -154,8 +190,6 @@ class QState(object):
         Raises:
             OperatorNotMatchError
         """
-        new_state = np.zeros((2**self.num, 2**self.num), dtype=complex)
-
         if len(list_operators) != len(list_p):
             raise OperatorNotMatchError("Not match number between operators and possibilities")
 
@@ -168,14 +202,24 @@ class QState(object):
         if abs(1-sum) >= 1e-6:
             raise OperatorNotMatchError("Probabilities are not normalized")
 
-        for idx, operator in enumerate(list_operators):
-            operator_size = operator.shape
-            if operator_size == (2**self.num, 2**self.num):
-                full_operator = operator
-            else:
+        for operator in list_operators:
+            if operator.shape != (2**self.num, 2**self.num):
                 raise OperatorNotMatchError
-            new_state += list_p[idx] * np.dot(full_operator, np.dot(self.rho, full_operator.T.conjugate()))
-        self.rho = new_state
+        self._backend = self._backend.stochastic_evolve(list_operators, list_p)
+
+    def stochastic_operate_on(self, list_operators: List[np.ndarray], list_p: List[float],
+                              qubits: List["Qubit"]):
+        if len(list_operators) != len(list_p):
+            raise OperatorNotMatchError("Not match number between operators and possibilities")
+        if any(p < 0 or p > 1 for p in list_p) or abs(1 - sum(list_p)) >= 1e-6:
+            raise OperatorNotMatchError("Probabilities are not normalized")
+        try:
+            qargs = [self.qubits.index(qubit) for qubit in qubits]
+        except ValueError:
+            raise QStateQubitNotInStateError
+        if any(operator.shape != (2 ** len(qargs), 2 ** len(qargs)) for operator in list_operators):
+            raise OperatorNotMatchError
+        self._backend = self._backend.stochastic_evolve(list_operators, list_p, qargs)
 
     def equal(self, other_state: "QState") -> bool:
         """
@@ -184,7 +228,7 @@ class QState(object):
         Args:
             other_state (QState): the second QState
         """
-        return np.all(self.rho == other_state.rho)
+        return np.allclose(self.rho, other_state.rho)
 
     def is_pure_state(self, eps: float = 0.000_001) -> bool:
         """
@@ -194,7 +238,7 @@ class QState(object):
         Returns:
             bool, if the state is a pure state
         """
-        return abs(np.trace(np.dot(self.rho, self.rho)) - 1) <= eps
+        return self._backend.is_pure_state(eps)
 
     def state(self) -> np.ndarray:
         """
@@ -203,15 +247,7 @@ class QState(object):
         Returns:
             The pure state vector
         """
-        if not self.is_pure_state():
-            print(self.rho.T.conjugate() * self.rho)
-            return None
-        evs = np.linalg.eig(self.rho)
-        max_idx = 0
-        for idx, i in enumerate(evs[0]):
-            if i > evs[0][max_idx]:
-                max_idx = idx
-        return evs[1][:, max_idx].reshape((2**self.num, 1))
+        return self._backend.statevector()
 
     def __repr__(self) -> str:
         if self.name is not None:
@@ -226,17 +262,18 @@ class Qubit(QuantumModel):
 
     def __init__(self, state=QUBIT_STATE_0, rho: np.ndarray = None,
                  operate_decoherence_rate: float = 0, measure_decoherence_rate: float = 0,
-                 name: Optional[str] = None):
+                 name: Optional[str] = None, backend: Optional[str] = None):
         """
         Args:
             state (list): the initial state of a qubit, default is |0> = [1, 0]^T
             operate_decoherence_rate (float): the operate decoherence rate
             measure_decoherence_rate (float): the measure decoherence rate
             name (str): the qubit's name
+            backend (str): the quantum state backend, ``numpy`` or ``qiskit``
         """
 
         self.name = name
-        self.state = QState([self], state=state, rho=rho)
+        self.state = QState([self], state=state, rho=rho, backend=backend)
         self.operate_decoherence_rate = operate_decoherence_rate
         self.measure_decoherence_rate = measure_decoherence_rate
 
@@ -297,8 +334,7 @@ class Qubit(QuantumModel):
         if isinstance(operator, SingleQubitGate):
             operator(self)
             return
-        full_operator = single_gate_expand(self, operator)
-        self.state.operate(full_operator)
+        self.state.operate_on(operator, [self])
 
     def _operate_without_error(self, operator: Any) -> None:
         """
@@ -311,8 +347,7 @@ class Qubit(QuantumModel):
         if isinstance(operator, SingleQubitGate):
             operator(self)
             return
-        full_operator = single_gate_expand(self, operator)
-        self.state.operate(full_operator)
+        self.state.operate_on(operator, [self])
 
     def stochastic_operate(self, list_operators: List[np.ndarray] = [], list_p: List[float] = []):
         """
@@ -325,13 +360,17 @@ class Qubit(QuantumModel):
             OperatorNotMatchError
         """
         from qns.models.qubit.gate import SingleQubitGate
-        full_operators_list = []
+        operators_list = []
         for operator in list_operators:
             if isinstance(operator, SingleQubitGate):
-                full_operators_list.append(single_gate_expand(self, operator._operator))
+                operators_list.append(operator._operator)
             else:
-                full_operators_list.append(single_gate_expand(self, operator))
-        self.state.stochastic_operate(full_operators_list, list_p)
+                operators_list.append(operator)
+        self.state.stochastic_operate_on(operators_list, list_p, [self])
+
+    @property
+    def backend_name(self) -> str:
+        return self.state.backend_name
 
     def __repr__(self) -> str:
         if self.name is not None:

@@ -32,7 +32,7 @@ setup(
     url="https://github.com/ertuil/SimQN",
     exclude_package_data={'docs': ['.gitkeep']},
     setup_requires=["numpy", "pandas", "twine", "wheel"],
-    install_requires=["numpy", "pandas"],
+    install_requires=["numpy>=1.23,<2", "pandas", "qiskit>=2.3,<3"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",

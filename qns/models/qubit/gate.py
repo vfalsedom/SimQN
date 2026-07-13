@@ -158,28 +158,10 @@ class DoubleQubitsControlledGate(Gate):
             return
         joint(qubit1, qubit2)
         state = qubit1.state
-
-        try:
-            idx1 = state.qubits.index(qubit1)
-            idx2 = state.qubits.index(qubit2)
-        except ValueError:
-            raise QGateQubitNotInStateError
-
-        full_operator_part_0 = np.array([1])  # |0> <0|
-        full_operator_part_1 = np.array([1])  # |1> <1|
-
-        for i in range(state.num):
-            if i == idx1:
-                full_operator_part_0 = kron(full_operator_part_0, np.array([[1, 0], [0, 0]]))
-                full_operator_part_1 = kron(full_operator_part_1, np.array([[0, 0], [0, 1]]))
-            elif i == idx2:
-                full_operator_part_0 = kron(full_operator_part_0, OPERATOR_PAULI_I)
-                full_operator_part_1 = kron(full_operator_part_1, operator)
-            else:
-                full_operator_part_0 = kron(full_operator_part_0, OPERATOR_PAULI_I)
-                full_operator_part_1 = kron(full_operator_part_1, OPERATOR_PAULI_I)
-        full_operator = full_operator_part_0 + full_operator_part_1
-        qubit1.state.operate(full_operator)
+        controlled_operator = np.zeros((4, 4), dtype=complex)
+        controlled_operator[0:2, 0:2] = OPERATOR_PAULI_I
+        controlled_operator[2:4, 2:4] = operator
+        state.operate_on(controlled_operator, [qubit1, qubit2])
 
 
 ControlledGate = DoubleQubitsControlledGate(name="Controlled Gate",
@@ -265,43 +247,9 @@ class ThreeQubitsGate(Gate):
         joint(qubit2, qubit3)
 
         state = qubit1.state
-
-        # single qubit operate
-        try:
-            idx1 = state.qubits.index(qubit1)
-            idx2 = state.qubits.index(qubit2)
-            idx3 = state.qubits.index(qubit3)
-        except ValueError:
-            raise QGateQubitNotInStateError
-
-        full_operator_part_00 = np.array([1])  # |0> <0|
-        full_operator_part_01 = np.array([1])  # |1> <1|
-        full_operator_part_10 = np.array([1])  # |0> <0|
-        full_operator_part_11 = np.array([1])  # |1> <1|
-
-        for i in range(state.num):
-            if i == idx1:
-                full_operator_part_00 = kron(full_operator_part_00, np.array([[1, 0], [0, 0]]))
-                full_operator_part_01 = kron(full_operator_part_01, np.array([[1, 0], [0, 0]]))
-                full_operator_part_10 = kron(full_operator_part_10, np.array([[0, 0], [0, 1]]))
-                full_operator_part_11 = kron(full_operator_part_11, np.array([[0, 0], [0, 1]]))
-            elif i == idx2:
-                full_operator_part_00 = kron(full_operator_part_00, np.array([[1, 0], [0, 0]]))
-                full_operator_part_10 = kron(full_operator_part_10, np.array([[1, 0], [0, 0]]))
-                full_operator_part_01 = kron(full_operator_part_01, np.array([[0, 0], [0, 1]]))
-                full_operator_part_11 = kron(full_operator_part_11, np.array([[0, 0], [0, 1]]))
-            elif i == idx3:
-                full_operator_part_00 = kron(full_operator_part_00, OPERATOR_PAULI_I)
-                full_operator_part_01 = kron(full_operator_part_01, OPERATOR_PAULI_I)
-                full_operator_part_10 = kron(full_operator_part_10, OPERATOR_PAULI_I)
-                full_operator_part_11 = kron(full_operator_part_11, operator)
-            else:
-                full_operator_part_00 = kron(full_operator_part_00, OPERATOR_PAULI_I)
-                full_operator_part_01 = kron(full_operator_part_01, OPERATOR_PAULI_I)
-                full_operator_part_10 = kron(full_operator_part_10, OPERATOR_PAULI_I)
-                full_operator_part_11 = kron(full_operator_part_11, OPERATOR_PAULI_I)
-        full_operator = full_operator_part_00 + full_operator_part_01 + full_operator_part_10 + full_operator_part_11
-        qubit1.state.operate(full_operator)
+        controlled_operator = np.identity(8, dtype=complex)
+        controlled_operator[6:8, 6:8] = operator
+        state.operate_on(controlled_operator, [qubit1, qubit2, qubit3])
 
 
 Toffoli = ThreeQubitsGate(name="Toffoli Gate",

@@ -24,6 +24,8 @@ from qns.models.qubit.decoherence import PrefectMeasureErrorModel, PrefectOperat
     DephaseOperateErrorModel, DephaseStorageErrorModel, DephaseTransferErrorModel, \
     DepolarMeasureErrorModel, DepolarOperateErrorModel, DepolarStorageErrorModel, DepolarTransferErrorModel
 from qns.models.qubit.factory import QubitFactory
+from qns.models.qubit.backends import QuantumStateBackend, NumpyStateBackend, QiskitStateBackend, \
+                                      get_default_backend, set_default_backend
 
 __all__ = ["Qubit", "QState", "X", "Y", "Z", "H", "S",
            "T", "R", "I", "CNOT", "joint", "RX", "RY", "RZ", "U", "CX", "CY",
@@ -32,4 +34,5 @@ __all__ = ["Qubit", "QState", "X", "Y", "Z", "H", "S",
            "PrefectStorageErrorModel", "PrefectTransferErrorModel", "DephaseMeasureErrorModel",
            "DephaseOperateErrorModel", "DephaseStorageErrorModel", "DephaseTransferErrorModel",
            "DepolarMeasureErrorModel", "DepolarOperateErrorModel", "DepolarStorageErrorModel",
-           "DepolarTransferErrorModel", "QubitFactory"]
+           "DepolarTransferErrorModel", "QubitFactory", "QuantumStateBackend",
+           "NumpyStateBackend", "QiskitStateBackend", "get_default_backend", "set_default_backend"]
