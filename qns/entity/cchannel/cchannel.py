@@ -138,6 +138,8 @@ class ClassicChannel(Entity):
                + self._simulator.time(sec=self.max_buffer_size / self.bandwidth):
                 # buffer is overflow
                 log.debug(f"cchannel {self}: drop packet {packet} due to overflow")
+                self._record_packet("classic-dropped", packet, self._simulator.current_time.sec,
+                                    reason="buffer-overflow")
                 return
 
             self._next_send_time = send_time + \
@@ -148,13 +150,24 @@ class ClassicChannel(Entity):
         # random drop
         if get_rand() < self.drop_rate:
             log.debug(f"cchannel {self}: drop packet {packet} due to drop rate")
+            self._record_packet("classic-dropped", packet, send_time.sec, reason="drop-rate")
             return
         #  add delay
         recv_time = send_time + self._simulator.time(sec=self.delay_model.calculate())
 
+        self._record_packet("classic-transfer", packet, send_time.sec, end_time=recv_time.sec)
+
         send_event = RecvClassicPacket(recv_time, name=None, by=self,
                                        cchannel=self, packet=packet, dest=next_hop)
         self._simulator.add_event(send_event)
+
+    def _record_packet(self, kind: str, packet: ClassicPacket, time: float, **kwargs) -> None:
+        message = packet.get()
+        label = message.get("type", "packet") if isinstance(message, dict) else "packet"
+        round_id = message.get("round") if isinstance(message, dict) else None
+        self._simulator.record(kind, time=time, channel=self, node=packet.src,
+                               src=packet.src, dest=packet.dest, label=label,
+                               round=round_id, **kwargs)
 
     def __repr__(self) -> str:
         if self.name is not None:
@@ -179,4 +192,12 @@ class RecvClassicPacket(Event):
         self.dest = dest
 
     def invoke(self) -> None:
+        message = self.packet.get()
+        label = message.get("type", "packet") if isinstance(message, dict) else "packet"
+        round_id = message.get("round") if isinstance(message, dict) else None
+        self.cchannel._simulator.record(
+            "classic-received", time=self.t.sec, channel=self.cchannel,
+            node=self.dest, src=self.packet.src, dest=self.dest,
+            label=label, round=round_id,
+        )
         self.dest.handle(self)

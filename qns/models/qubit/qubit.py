@@ -166,19 +166,29 @@ class QState(object):
         Raises:
             OperatorNotMatchError
         """
-        if operator.shape != (2**self.num, 2**self.num):
+        if isinstance(operator, np.ndarray):
+            if operator.shape != (2**self.num, 2**self.num):
+                raise OperatorNotMatchError
+        elif getattr(operator, "num_qubits", self.num) != self.num:
             raise OperatorNotMatchError
         self._backend = self._backend.evolve(operator)
 
-    def operate_on(self, operator: np.ndarray, qubits: List["Qubit"]):
+    def operate_on(self, operator, qubits: List["Qubit"]):
         """Transform selected qubits using an operator in SimQN qubit order."""
         try:
             qargs = [self.qubits.index(qubit) for qubit in qubits]
         except ValueError:
             raise QStateQubitNotInStateError
-        if operator.shape != (2 ** len(qargs), 2 ** len(qargs)):
+        if isinstance(operator, np.ndarray):
+            if operator.shape != (2 ** len(qargs), 2 ** len(qargs)):
+                raise OperatorNotMatchError
+        elif getattr(operator, "num_qubits", len(qargs)) != len(qargs):
             raise OperatorNotMatchError
         self._backend = self._backend.evolve(operator, qargs)
+
+    def apply_operation(self, operation, qubits: List["Qubit"]) -> None:
+        """Apply a backend-native operation to selected qubits."""
+        self.operate_on(operation, qubits)
 
     def stochastic_operate(self, list_operators: List[np.ndarray] = [], list_p: List[float] = []):
         """
@@ -262,7 +272,8 @@ class Qubit(QuantumModel):
 
     def __init__(self, state=QUBIT_STATE_0, rho: np.ndarray = None,
                  operate_decoherence_rate: float = 0, measure_decoherence_rate: float = 0,
-                 name: Optional[str] = None, backend: Optional[str] = None):
+                 name: Optional[str] = None, backend: Optional[str] = None,
+                 owner: Optional[Any] = None):
         """
         Args:
             state (list): the initial state of a qubit, default is |0> = [1, 0]^T
@@ -270,12 +281,15 @@ class Qubit(QuantumModel):
             measure_decoherence_rate (float): the measure decoherence rate
             name (str): the qubit's name
             backend (str): the quantum state backend, ``numpy`` or ``qiskit``
+            owner: the node that currently owns this qubit
         """
 
         self.name = name
         self.state = QState([self], state=state, rho=rho, backend=backend)
         self.operate_decoherence_rate = operate_decoherence_rate
         self.measure_decoherence_rate = measure_decoherence_rate
+        self.owner = owner
+        self._locked_by = None
 
     def measure(self):
         """
@@ -371,6 +385,23 @@ class Qubit(QuantumModel):
     @property
     def backend_name(self) -> str:
         return self.state.backend_name
+
+    @property
+    def is_locked(self) -> bool:
+        return self._locked_by is not None
+
+    def lock(self, job_id: str) -> None:
+        from qns.entity.operator.errors import QubitBusyError
+        if self._locked_by is not None and self._locked_by != job_id:
+            raise QubitBusyError("qubit {} is locked by {}".format(self, self._locked_by))
+        self._locked_by = job_id
+
+    def unlock(self, job_id: str) -> None:
+        if self._locked_by == job_id:
+            self._locked_by = None
+
+    def set_owner(self, owner: Optional[Any]) -> None:
+        self.owner = owner
 
     def __repr__(self) -> str:
         if self.name is not None:

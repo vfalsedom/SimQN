@@ -6,16 +6,8 @@
 #    it under the terms of the GNU General Public License as published by
 #    the Free Software Foundation, either version 3 of the License, or
 #    (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import numpy as np
 from qiskit.quantum_info import DensityMatrix, Kraus, Operator, partial_trace, purity
@@ -48,9 +40,13 @@ class QiskitStateBackend(QuantumStateBackend):
     def raw_state(self) -> DensityMatrix:
         return self._density_matrix
 
-    def _native_qargs(self, qargs: List[int]) -> List[int]:
-        # SimQN matrices use |q0 q1 ...>, while Qiskit subsystem 0 is least significant.
+    def _matrix_qargs(self, qargs: List[int]) -> List[int]:
+        """Map a SimQN big-endian matrix operand to Qiskit subsystems."""
         return [self.num - qarg - 1 for qarg in reversed(qargs)]
+
+    def _circuit_qargs(self, qargs: List[int]) -> List[int]:
+        """Map Qiskit operation qubit i to the corresponding SimQN qubit."""
+        return [self.num - qarg - 1 for qarg in qargs]
 
     def tensor(self, other: QuantumStateBackend) -> "QiskitStateBackend":
         if isinstance(other, QiskitStateBackend):
@@ -59,17 +55,24 @@ class QiskitStateBackend(QuantumStateBackend):
             density_matrix = self._density_matrix.tensor(DensityMatrix(other.data))
         return QiskitStateBackend(self.num + other.num, density_matrix=density_matrix)
 
-    def evolve(self, operator: np.ndarray,
+    def evolve(self, operation: Any,
                qargs: Optional[List[int]] = None) -> "QiskitStateBackend":
-        native_qargs = None if qargs is None else self._native_qargs(qargs)
-        density_matrix = self._density_matrix.evolve(Operator(operator), qargs=native_qargs)
+        is_matrix = isinstance(operation, (np.ndarray, list, tuple))
+        native_operation = Operator(operation) if is_matrix else operation
+        if qargs is None:
+            native_qargs = None
+        elif is_matrix:
+            native_qargs = self._matrix_qargs(qargs)
+        else:
+            native_qargs = self._circuit_qargs(qargs)
+        density_matrix = self._density_matrix.evolve(native_operation, qargs=native_qargs)
         return QiskitStateBackend(self.num, density_matrix=density_matrix)
 
     def stochastic_evolve(self, operators: List[np.ndarray], probabilities: List[float],
                           qargs: Optional[List[int]] = None) -> "QiskitStateBackend":
         kraus = Kraus([np.sqrt(probability) * np.asarray(operator, dtype=complex)
                        for operator, probability in zip(operators, probabilities)])
-        native_qargs = None if qargs is None else self._native_qargs(qargs)
+        native_qargs = None if qargs is None else self._matrix_qargs(qargs)
         density_matrix = self._density_matrix.evolve(kraus, qargs=native_qargs)
         return QiskitStateBackend(self.num, density_matrix=density_matrix)
 

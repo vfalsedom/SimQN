@@ -24,11 +24,16 @@ from qns.entity.memory.event import MemoryReadRequestEvent, MemoryReadResponseEv
 from qns.entity.cchannel.cchannel import ClassicChannel, ClassicPacket, RecvClassicPacket
 from qns.entity.qchannel.qchannel import QuantumChannel, RecvQubitPacket
 from qns.entity.qchannel.dqchannel import Link_Decoherence_QuantumChannel
-from qns.entity.operator import QuantumOperator, OperateRequestEvent, OperateResponseEvent
+from qns.entity.operator import QuantumOperator, CircuitProcessor, CircuitResult, \
+                                OperateRequestEvent, OperateResponseEvent, \
+                                CircuitExecuteRequestEvent, CircuitExecuteCompleteEvent, \
+                                CircuitExecuteResponseEvent
 from qns.entity.monitor.monitor import Monitor, MonitorEvent
 
 __all__ = ["Entity", "QNode", "Application", "Timer", "QuantumMemory", "ClassicChannel", "QuantumMemory",
            "ClassicPacket", "RecvClassicPacket", "QuantumChannel", "RecvQubitPacket",
            "QuantumOperator", "OperateRequestEvent", "OperateResponseEvent",
+           "CircuitProcessor", "CircuitResult", "CircuitExecuteRequestEvent",
+           "CircuitExecuteCompleteEvent", "CircuitExecuteResponseEvent",
            "MemoryReadRequestEvent", "MemoryReadResponseEvent",
            "MemoryWriteRequestEvent", "MemoryWriteResponseEvent", "Monitor", "MonitorEvent", "Link_Decoherence_QuantumChannel"]

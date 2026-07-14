@@ -152,6 +152,11 @@ class QuantumMemory(Entity):
         t_now = self._simulator.current_time
         sec_diff = t_now.sec - store_time.sec
         qubit.store_error_model(t=sec_diff, decoherence_rate=self.decoherence_rate, **self.store_error_model_args)
+        self._simulator.record(
+            "memory-read", memory=self, node=self.node,
+            label=getattr(qubit, "name", "qubit"), stored_for=sec_diff,
+            round=getattr(qubit, "round_id", None),
+        )
         return qubit
 
     def write(self, qm: QuantumModel) -> bool:
@@ -167,6 +172,12 @@ class QuantumMemory(Entity):
         if self.is_full():
             return False
 
+        if getattr(qm, "is_locked", False):
+            from qns.entity.operator.errors import QubitBusyError
+            raise QubitBusyError("cannot store a qubit while a circuit is using it")
+        if hasattr(qm, "set_owner"):
+            qm.set_owner(self.node)
+
         if self.capacity <= 0:
             self._storage.append(qm)
             self._store_time.append(self._simulator.current_time)
@@ -181,6 +192,10 @@ class QuantumMemory(Entity):
             self._storage[idx] = qm
             self._store_time[idx] = self._simulator.current_time
         self._usage += 1
+        self._simulator.record(
+            "memory-write", memory=self, node=self.node,
+            label=getattr(qm, "name", "qubit"), round=getattr(qm, "round_id", None),
+        )
         return True
 
     def is_full(self) -> bool:

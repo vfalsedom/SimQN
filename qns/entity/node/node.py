@@ -38,6 +38,7 @@ class QNode(Entity):
         self.qchannels = []
         self.memories = []
         self.operators = []
+        self.processors = []
 
         self.croute_table = []
         self.qroute_table = []
@@ -66,6 +67,8 @@ class QNode(Entity):
             from qns.entity import QuantumOperator
             assert (isinstance(operator, QuantumOperator))
             operator.install(simulator)
+        for processor in self.processors:
+            processor.install(simulator)
 
         # initiate applications
         for app in self.apps:
@@ -134,6 +137,20 @@ class QNode(Entity):
         """
         operator.set_own(self)
         self.operators.append(operator)
+
+    def add_processor(self, processor):
+        """Add a circuit processor to this node."""
+        processor.set_own(self)
+        self.processors.append(processor)
+
+    def get_processor(self, processor: Union[str, int] = 0):
+        """Get a circuit processor by index or name."""
+        if isinstance(processor, str):
+            for item in self.processors:
+                if item.name == processor:
+                    return item
+            return None
+        return self.processors[processor]
 
     def add_cchannel(self, cchannel):
         """

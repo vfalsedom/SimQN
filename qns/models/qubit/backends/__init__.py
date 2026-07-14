@@ -21,7 +21,7 @@ import numpy as np
 
 from qns.models.qubit.backends.base import QuantumStateBackend
 from qns.models.qubit.backends.numpy_backend import NumpyStateBackend
-from qns.models.qubit.backends.qiskit_backend import QiskitStateBackend
+from qns.models.qubit.backends.density_matrix_backend import QiskitStateBackend
 
 
 _DEFAULT_BACKEND = "numpy"

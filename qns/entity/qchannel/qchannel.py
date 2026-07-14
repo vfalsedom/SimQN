@@ -87,6 +87,10 @@ class QuantumChannel(Entity):
 
         if next_hop not in self.node_list:
             raise NextHopNotConnectionException
+        source = getattr(qubit, "owner", None)
+        if getattr(qubit, "is_locked", False):
+            from qns.entity.operator.errors import QubitBusyError
+            raise QubitBusyError("cannot send a qubit while a circuit is using it")
 
         if self.bandwidth != 0:
 
@@ -99,6 +103,11 @@ class QuantumChannel(Entity):
                + self._simulator.time(sec=self.max_buffer_size / self.bandwidth):
                 # buffer is overflow
                 log.debug(f"qchannel {self}: drop qubit {qubit} due to overflow")
+                self._simulator.record(
+                    "quantum-dropped", channel=self, node=source, src=source,
+                    dest=next_hop, label=getattr(qubit, "name", "qubit"),
+                    round=getattr(qubit, "round_id", None), reason="buffer-overflow",
+                )
                 return
 
             self._next_send_time = send_time + self._simulator.time(sec=1 / self.bandwidth)
@@ -108,13 +117,25 @@ class QuantumChannel(Entity):
         # random drop
         if get_rand() < self.drop_rate:
             log.debug(f"qchannel {self}: drop qubit {qubit} due to drop rate")
+            self._simulator.record(
+                "quantum-dropped", time=send_time.sec, channel=self, node=source,
+                src=source, dest=next_hop, label=getattr(qubit, "name", "qubit"),
+                round=getattr(qubit, "round_id", None), reason="drop-rate",
+            )
             return
 
         #  add delay
         recv_time = send_time + self._simulator.time(sec=self.delay_model.calculate())
+        self._simulator.record(
+            "quantum-transfer", time=send_time.sec, end_time=recv_time.sec,
+            channel=self, node=source, src=source, dest=next_hop,
+            label=getattr(qubit, "name", "qubit"), round=getattr(qubit, "round_id", None),
+        )
 
         # operation on the qubit
         qubit.transfer_error_model(self.length, self.decoherence_rate, **self.transfer_error_model_args)
+        if hasattr(qubit, "set_owner"):
+            qubit.set_owner(None)
         send_event = RecvQubitPacket(recv_time, name=None, by=self, qchannel=self,
                                      qubit=qubit, dest=next_hop)
         self._simulator.add_event(send_event)
@@ -141,4 +162,11 @@ class RecvQubitPacket(Event):
         self.dest = dest
 
     def invoke(self) -> None:
+        if hasattr(self.qubit, "set_owner"):
+            self.qubit.set_owner(self.dest)
+        self.qchannel._simulator.record(
+            "quantum-received", time=self.t.sec, channel=self.qchannel,
+            node=self.dest, dest=self.dest, label=getattr(self.qubit, "name", "qubit"),
+            round=getattr(self.qubit, "round_id", None),
+        )
         self.dest.handle(self)

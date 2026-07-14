@@ -57,6 +57,7 @@ class Simulator(object):
         self.total_events = 0
 
         self.watch_event = {}
+        self.trace = None
 
     @property
     def current_time(self) -> Time:
@@ -96,6 +97,21 @@ class Simulator(object):
         '''
         if self.event_pool.add_event(event):
             self.total_events += 1
+
+    def enable_trace(self, trace=None):
+        """Attach and return a protocol behavior trace."""
+        if trace is None:
+            from qns.simulator.trace import ProtocolTrace
+            trace = ProtocolTrace()
+        self.trace = trace
+        trace.bind(self)
+        return trace
+
+    def record(self, kind: str, time: Optional[float] = None, **data):
+        """Record behavior when tracing is enabled."""
+        if self.trace is None:
+            return None
+        return self.trace.record(kind=kind, time=time, **data)
 
     def run(self) -> None:
         '''

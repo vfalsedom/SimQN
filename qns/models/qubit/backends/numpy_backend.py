@@ -15,7 +15,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import numpy as np
 
@@ -79,9 +79,9 @@ class NumpyStateBackend(QuantumStateBackend):
     def tensor(self, other: QuantumStateBackend) -> "NumpyStateBackend":
         return NumpyStateBackend(self.num + other.num, rho=np.kron(self.data, other.data))
 
-    def evolve(self, operator: np.ndarray,
+    def evolve(self, operation: Any,
                qargs: Optional[List[int]] = None) -> "NumpyStateBackend":
-        full_operator = np.asarray(operator, dtype=complex)
+        full_operator = np.asarray(operation, dtype=complex)
         if qargs is not None:
             full_operator = _operator_expand(full_operator, self.num, qargs)
         rho = np.dot(full_operator, np.dot(self._rho, full_operator.T.conjugate()))

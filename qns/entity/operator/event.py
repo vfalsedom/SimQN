@@ -16,6 +16,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from typing import Any, List, Optional, Union
+from qiskit import QuantumCircuit
 from qns.entity.node.node import QNode
 from qns.models.core.backend import QuantumModel
 from qns.simulator.event import Event
@@ -43,6 +44,54 @@ class OperateResponseEvent(Event):
     """
     def __init__(self, node: QNode, result: Union[int, List[int]] = None,
                  request: OperateRequestEvent = None, t: Optional[Time] = None, name: Optional[str] = None,
+                 by: Optional[Any] = None):
+        super().__init__(t=t, name=name, by=by)
+        self.node = node
+        self.result = result
+        self.request = request
+
+    def invoke(self) -> None:
+        self.node.handle(self)
+
+
+class CircuitExecuteRequestEvent(Event):
+    """Request a node circuit processor to execute a Qiskit circuit."""
+
+    def __init__(self, processor, circuit: QuantumCircuit, qubits: List[QuantumModel],
+                 job_id: str, metadata: dict, t: Optional[Time] = None,
+                 name: Optional[str] = None, by: Optional[Any] = None):
+        super().__init__(t=t, name=name, by=by)
+        self.processor = processor
+        self.circuit = circuit
+        self.qubits = qubits
+        self.job_id = job_id
+        self.metadata = metadata
+
+    def invoke(self) -> None:
+        self.processor.handle(self)
+
+
+class CircuitExecuteCompleteEvent(Event):
+    """Complete a queued circuit and update its live quantum state."""
+
+    def __init__(self, processor, request: CircuitExecuteRequestEvent,
+                 start_time: Time, t: Optional[Time] = None,
+                 name: Optional[str] = None, by: Optional[Any] = None):
+        super().__init__(t=t, name=name, by=by)
+        self.processor = processor
+        self.request = request
+        self.start_time = start_time
+
+    def invoke(self) -> None:
+        self.processor.complete(self)
+
+
+class CircuitExecuteResponseEvent(Event):
+    """Deliver a completed circuit result to applications on its node."""
+
+    def __init__(self, node: QNode, result=None,
+                 request: CircuitExecuteRequestEvent = None,
+                 t: Optional[Time] = None, name: Optional[str] = None,
                  by: Optional[Any] = None):
         super().__init__(t=t, name=name, by=by)
         self.node = node

@@ -16,7 +16,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import numpy as np
 
@@ -44,9 +44,9 @@ class QuantumStateBackend(ABC):
         """Return ``self tensor other``."""
 
     @abstractmethod
-    def evolve(self, operator: np.ndarray,
+    def evolve(self, operation: Any,
                qargs: Optional[List[int]] = None) -> "QuantumStateBackend":
-        """Evolve the state with an operator."""
+        """Evolve the state with a backend-supported operation."""
 
     @abstractmethod
     def stochastic_evolve(self, operators: List[np.ndarray], probabilities: List[float],
