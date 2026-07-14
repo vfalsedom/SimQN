@@ -27,12 +27,15 @@ def restore_default_backend():
     set_default_backend(backend)
 
 
-def test_qiskit_is_the_default_backend():
-    assert get_default_backend() == "qiskit"
+def test_numpy_is_the_default_backend():
+    assert get_default_backend() == "numpy"
     qubit = Qubit()
-    assert qubit.backend_name == "qiskit"
-    assert isinstance(qubit.state.backend, QiskitStateBackend)
-    assert isinstance(qubit.state.backend.raw_state, DensityMatrix)
+    assert qubit.backend_name == "numpy"
+    assert isinstance(qubit.state.backend, NumpyStateBackend)
+
+    factory_qubit = QubitFactory()()
+    assert factory_qubit.backend_name == "numpy"
+    assert isinstance(factory_qubit.state.backend, NumpyStateBackend)
 
 
 @pytest.mark.parametrize("backend,backend_class", [
@@ -156,10 +159,11 @@ def test_entanglement_conversion_selects_backend(backend, entanglement):
 
 
 def test_default_backend_can_be_changed_for_legacy_code():
-    set_default_backend("numpy")
+    set_default_backend("qiskit")
     qubit = Qubit()
     X(qubit)
-    assert qubit.backend_name == "numpy"
+    assert qubit.backend_name == "qiskit"
+    assert isinstance(qubit.state.backend.raw_state, DensityMatrix)
     assert qubit.measure() == 1
 
 

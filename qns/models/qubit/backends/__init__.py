@@ -24,7 +24,7 @@ from qns.models.qubit.backends.numpy_backend import NumpyStateBackend
 from qns.models.qubit.backends.qiskit_backend import QiskitStateBackend
 
 
-_DEFAULT_BACKEND = "qiskit"
+_DEFAULT_BACKEND = "numpy"
 _BACKENDS = {
     "numpy": NumpyStateBackend,
     "qiskit": QiskitStateBackend,

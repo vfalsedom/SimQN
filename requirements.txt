@@ -1,6 +1,8 @@
 Cython==0.29.28
 numpy>=1.23,<2
 pandas==1.4.2
+matplotlib>=3.7,<4
+pylatexenc>=2.10,<3
 pytest>=8,<9
 qiskit>=2.3,<3
 twine==4.0.0
