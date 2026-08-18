@@ -17,6 +17,8 @@
 
 from qns.utils.log import logger, debug, info, error, install, warn, critical, monitor
 from qns.utils.rnd import set_seed, get_rand, get_randint, get_choice
+from qns.utils.table import format_table
 
 __all__ = ["logger", "debug", "info", "error", "install",
-           "warn", "critical", "monitor", "set_seed", "get_rand", "get_randint", "get_choice"]
+           "warn", "critical", "monitor", "set_seed", "get_rand", "get_randint", "get_choice",
+           "format_table"]

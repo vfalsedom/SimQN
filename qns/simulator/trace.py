@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Union
 
 
 class ProtocolTrace:
-    """Collect timestamped processor, channel, and memory behavior."""
+    """Collect processor, channel, and memory behavior for visualization."""
 
     def __init__(self):
         self._simulator = None

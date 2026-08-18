@@ -99,4 +99,7 @@ class CircuitExecuteResponseEvent(Event):
         self.request = request
 
     def invoke(self) -> None:
-        self.node.handle(self)
+        try:
+            self.node.handle(self)
+        finally:
+            self.request.processor.response_delivered(self.request)

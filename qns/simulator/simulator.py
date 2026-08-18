@@ -90,13 +90,15 @@ class Simulator(object):
             return Time(time_slot=time_slot, accuracy=self.accuracy)
         return Time(sec=sec, accuracy=self.accuracy)
 
-    def add_event(self, event: Event) -> None:
+    def add_event(self, event: Event) -> bool:
         '''
         Add an ``event`` into simulator event pool.
         :param event: the inserting event
         '''
-        if self.event_pool.add_event(event):
+        accepted = self.event_pool.add_event(event)
+        if accepted:
             self.total_events += 1
+        return accepted
 
     def enable_trace(self, trace=None):
         """Attach and return a protocol behavior trace."""

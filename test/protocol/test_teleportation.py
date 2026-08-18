@@ -8,7 +8,7 @@ matplotlib.use("Agg")
 
 from matplotlib import pyplot as plt
 from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
-
+from qns.entity.operator import processor
 from qns.entity.cchannel.cchannel import ClassicChannel, ClassicPacket, RecvClassicPacket
 from qns.entity.node.app import Application
 from qns.entity.node.node import QNode
@@ -20,6 +20,7 @@ from qns.simulator.event import Event
 from qns.simulator.simulator import Simulator
 from qns.simulator.trace import ProtocolTrace
 from qns.simulator.ts import Time
+from qns.utils.table import format_table
 from qns.utils.rnd import set_seed
 
 
@@ -111,8 +112,14 @@ class AliceProtocol(Application):
         session["bob_ebit"].teleport_start_time = session["start_time"]
         self.sessions[event.round_id] = session
         self.get_simulator().record("protocol-round-start", node=node, round=event.round_id)
+        circuit = _epr_circuit()
         node.get_processor("processor").submit(
-            _epr_circuit(), [session["alice_ebit"], session["bob_ebit"]], by=self,
+            circuit,
+            {
+                circuit.qregs[0][0]: session["alice_ebit"],
+                circuit.qregs[1][0]: session["bob_ebit"],
+            },
+            by=self,
             metadata={"stage": "prepare-epr", "round": event.round_id},
         )
 
@@ -138,8 +145,14 @@ class AliceProtocol(Application):
             return
         round_id = message["round"]
         session = self.sessions[round_id]
+        circuit = _bell_circuit()
         node.get_processor("processor").submit(
-            _bell_circuit(), [session["message"], session["alice_ebit"]], by=self,
+            circuit,
+            {
+                circuit.qregs[0][0]: session["message"],
+                circuit.qregs[1][0]: session["alice_ebit"],
+            },
+            by=self,
             metadata={"stage": "bell-measurement", "round": round_id},
         )
 
@@ -167,9 +180,11 @@ class BobProtocol(Application):
         message = event.packet.get()
         if message.get("type") != "measurement":
             return
+        circuit = _correction_circuit(message["a"], message["b"])
         node.get_processor("processor").submit(
-            _correction_circuit(message["a"], message["b"]),
-            [self.pending[message["round"]]], by=self,
+            circuit,
+            {circuit.qregs[0][0]: self.pending[message["round"]]},
+            by=self,
             metadata={"stage": "bob-correction", **message},
         )
 
@@ -308,10 +323,19 @@ def main() -> None:
         round=0, filename=directory / "teleportation_circuit.png",
     )
     plt.close(total)
-    print("timeline: {}".format(directory / "teleportation_timeline.png"))
-    print("local circuits: {}".format(directory / "teleportation_local_circuits"))
-    print("total circuit: {}".format(directory / "teleportation_circuit.png"))
-    print("results: {}".format(results))
+    print("\nGenerated artifacts")
+    print("===================")
+    print(format_table({
+        "artifact": ["timeline", "local circuits", "total circuit"],
+        "path": [
+            str(directory / "teleportation_timeline.png"),
+            str(directory / "teleportation_local_circuits"),
+            str(directory / "teleportation_circuit.png"),
+        ],
+    }))
+    print("\nTeleportation results")
+    print("=====================")
+    print(format_table(results))
 
 
 if __name__ == "__main__":

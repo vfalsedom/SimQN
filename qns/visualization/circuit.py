@@ -15,7 +15,7 @@ from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
 
 
 def build_circuit(trace, round: Optional[int] = None) -> QuantumCircuit:
-    """Combine completed circuit jobs into the circuit path observed in a trace."""
+    """Build a visualization-only circuit from the completed jobs in a trace."""
     records = [record for record in trace.records
                if record["kind"] == "circuit-completed"
                and "circuit" in record
@@ -25,11 +25,17 @@ def build_circuit(trace, round: Optional[int] = None) -> QuantumCircuit:
         raise ValueError("the trace does not contain completed circuit jobs")
 
     used_names = set()
-    qubit_names = _ordered_qubit_names(records)
+    qubit_ids = _ordered_qubit_ids(records)
+    qubit_labels = {}
+    for record in records:
+        qubit_labels.update(record.get("qubit_labels", {}))
 
     qubit_registers = {
-        name: QuantumRegister(1, _unique_name(_identifier(name, "q"), used_names))
-        for name in qubit_names
+        qubit_id: QuantumRegister(
+            1,
+            _unique_name(_identifier(qubit_labels.get(qubit_id, qubit_id), "q"), used_names),
+        )
+        for qubit_id in qubit_ids
     }
     classical_registers = []
     job_clbits = {}
@@ -107,7 +113,7 @@ def _identifier(value: Any, fallback: str) -> str:
     return name
 
 
-def _ordered_qubit_names(records) -> list:
+def _ordered_qubit_ids(records) -> list:
     first_seen = []
     following = {}
     indegree = {}

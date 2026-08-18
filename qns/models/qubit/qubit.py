@@ -16,6 +16,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from typing import Any, List, Optional
+from uuid import uuid4
 import numpy as np
 
 from qns.models.qubit.const import QUBIT_STATE_0, QUBIT_STATE_1, \
@@ -285,6 +286,7 @@ class Qubit(QuantumModel):
         """
 
         self.name = name
+        self.trace_id = uuid4().hex
         self.state = QState([self], state=state, rho=rho, backend=backend)
         self.operate_decoherence_rate = operate_decoherence_rate
         self.measure_decoherence_rate = measure_decoherence_rate

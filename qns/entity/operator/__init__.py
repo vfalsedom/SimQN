@@ -16,7 +16,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from qns.entity.operator.operator import QuantumOperator
-from qns.entity.operator.processor import CircuitProcessor
+from qns.entity.operator.processor import CircuitProcessor, QubitBinding
 from qns.entity.operator.result import CircuitResult
 from qns.entity.operator.errors import CircuitExecutionError, UnsupportedCircuitInstructionError, \
                                        QubitBackendMismatchError, QubitBusyError, QubitOwnershipError
@@ -24,7 +24,7 @@ from qns.entity.operator.event import OperateRequestEvent, OperateResponseEvent,
                                       CircuitExecuteRequestEvent, CircuitExecuteCompleteEvent, \
                                       CircuitExecuteResponseEvent
 
-__all__ = ["QuantumOperator", "CircuitProcessor", "CircuitResult",
+__all__ = ["QuantumOperator", "CircuitProcessor", "QubitBinding", "CircuitResult",
            "OperateRequestEvent", "OperateResponseEvent", "CircuitExecuteRequestEvent",
            "CircuitExecuteCompleteEvent", "CircuitExecuteResponseEvent",
            "CircuitExecutionError", "UnsupportedCircuitInstructionError",
