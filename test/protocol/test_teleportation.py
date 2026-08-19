@@ -8,7 +8,6 @@ matplotlib.use("Agg")
 
 from matplotlib import pyplot as plt
 from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
-from qns.entity.operator import processor
 from qns.entity.cchannel.cchannel import ClassicChannel, ClassicPacket, RecvClassicPacket
 from qns.entity.node.app import Application
 from qns.entity.node.node import QNode

@@ -220,6 +220,7 @@ class QuantumNetwork(object):
             number (int): the number of requests
             allow_overlay (bool): allow a node to be the source or destination in multiple requests
             attr (Dict): request attributions
+            hop_limit (int): minimum route metric for a request. Values less than or equal to zero disable the limit.
         """
         used_nodes: List[int] = []
         nnodes = len(self.nodes)

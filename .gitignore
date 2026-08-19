@@ -15,3 +15,9 @@ qns/**/*.pyd
 .idea
 .eggs
 *.png
+
+# DOCS FOR AI
+AGENTS.md
+
+# DOCS FOR ME
+CHANGELOG_CN.md
