@@ -26,14 +26,16 @@ class QNode(Entity):
     """
     QNode is a quantum node in the quantum network
     """
-    def __init__(self, name: str = None, apps: List[Application] = None):
+    def __init__(self, name: str = None, apps: List[Application] = None, q: float = 1.0):
         """
         Args:
             name (str): the node's name
             apps (List[Application]): the installing applications.
+            q (float): the node's swapping probability.
         """
         super().__init__(name=name)
         self.network = None
+        self.q = q
         self.cchannels = []
         self.qchannels = []
         self.memories = []

@@ -36,7 +36,7 @@ class QuantumChannel(Entity):
     def __init__(self, name: str = None, node_list: List[QNode] = [], fidelity: float = 0.8,
                  bandwidth: int = 1, delay: Union[float, DelayModel] = 0, drop_rate: float = 0,
                  max_buffer_size: int = 0, length: float = 0, decoherence_rate: Optional[float] = 0,
-                 transfer_error_model_args: dict = {}):
+                 transfer_error_model_args: dict = {}, p = 0):
         """
         Args:
             name (str): the name of this channel
@@ -50,6 +50,7 @@ class QuantumChannel(Entity):
             length (float): the length of this channel
             decoherence_rate: the decoherence rate that will pass to the transfer_error_model
             transfer_error_model_args (dict): the parameters that pass to the transfer_error_model
+            p (float): the probability of successful entanglement distribution.
         """
         super().__init__(name=name)
         self.node_list = node_list.copy()
@@ -61,6 +62,7 @@ class QuantumChannel(Entity):
         self.length = length
         self.decoherence_rate = decoherence_rate
         self.transfer_error_model_args = transfer_error_model_args
+        self.p = p
 
     def install(self, simulator: Simulator) -> None:
         '''

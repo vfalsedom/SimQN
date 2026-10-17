@@ -159,6 +159,15 @@ class QuantumNetwork(object):
         """
         self.route.build(self.nodes, self.qchannels)
 
+    def add_route_algorithm(self, route: RouteImpl):
+        """
+        add a route algorithm to this network
+
+        Args:
+            route (qns.network.route.route.RouteImpl): the route algorithm
+        """
+        self.route = route
+
     def create_neighbors_tables(self) -> Dict[QNode, List[QNode]]:
         '''
         build neighbors_table for each nodes
