@@ -15,7 +15,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from typing import Dict, List, Optional, Tuple, Callable
+from typing import Dict, KeysView, List, Optional, Tuple, Callable
 from qns.entity import QNode, QuantumChannel, QuantumMemory, ClassicChannel
 from qns.network.graphalg.alg import create_neighbors_tables, dijkstra, networkdraw, is_connected
 from qns.network.topology import Topology
@@ -52,6 +52,9 @@ class QuantumNetwork(object):
                                                     nl=self.nodes, ll=self.qchannels)
             for n in self.nodes:
                 n.add_network(self)
+
+        self._link_index: Dict[QNode, Dict[QNode, QuantumChannel]] = {}
+        self.rebuild_link_index()
 
         if route is None:
             self.route: RouteImpl = DijkstraRouteAlgorithm()
@@ -101,6 +104,27 @@ class QuantumNetwork(object):
             qchannel (qns.entity.qchannel.qchannel.QuantumChannel): the inserting QuantumChannel
         """
         self.qchannels.append(qchannel)
+        self._index_qchannel(qchannel)
+
+    def _index_qchannel(self, qchannel: QuantumChannel):
+        for src in qchannel.node_list:
+            for dest in qchannel.node_list:
+                if src is not dest:
+                    self._link_index.setdefault(src, {}).setdefault(dest, qchannel)
+
+    def rebuild_link_index(self):
+        """Rebuild after direct changes to qchannels or channel endpoints."""
+        self._link_index.clear()
+        for channel in self.qchannels:
+            self._index_qchannel(channel)
+
+    def get_link(self, src: QNode, dest: QNode) -> Optional[QuantumChannel]:
+        """Return the first channel between endpoints, or None. Average O(1)."""
+        return self._link_index.get(src, {}).get(dest)
+
+    def get_neighbors(self, node: QNode) -> KeysView[QNode]:
+        """Return a read-only neighbor view, including zero-bandwidth links. O(1)."""
+        return self._link_index.get(node, {}).keys()
 
     def get_qchannel(self, name: str):
         """
