@@ -9,6 +9,27 @@ SimQN uses Loguru to output logs and monitoring data, with a standard Python
 ``setLevel()``, handlers, filters, and percent-style message arguments continue
 to work. The logging helpers can include the simulator's current time:
 
+Configure the destination and minimum level in one call, without importing
+Loguru. Choose one of the following configurations in the application entry
+point:
+
+.. code-block:: Python
+
+    import qns.utils.log as log
+
+    log.configure("console", level="INFO")  # terminal only (stderr)
+    log.configure("file", "logs/experiment.log", level="DEBUG")  # file only
+    log.configure("both", "logs/experiment.log", level="DEBUG")  # terminal and file
+
+Each call replaces the previous Loguru outputs and sets both the SimQN logger
+level and the output levels. File paths may be strings or ``pathlib.Path``
+objects; missing parent directories are created. Configuring file output clears
+any existing file at that path. Relative paths are resolved from the current
+working directory. The installed simulator and existing logging entry points
+are preserved.
+
+Install the simulator to include its current time:
+
 .. code-block:: Python
 
     import qns.utils.log as log
@@ -38,9 +59,10 @@ import, SimQN replaces Loguru's built-in stderr sink with this default format:
 
 .. code-block:: Python
 
+    _SIM_FORMAT = "<green>sim={extra[sim_time]}</green> "
     _FORMAT = (
-        "<yellow>{time:HH:mm:ss.SSS}</yellow> | "
-        "<yellow>sim={extra[sim_time]}</yellow> | "
+        "<yellow>[{time:HH:mm:ss.SSS}]</yellow> "
+        + _SIM_FORMAT + "| "
         "<level>{level}</level> "
         "<cyan>[{name}:{line}]</cyan> "
         "<level>{extra[display_message]}</level>"
@@ -48,8 +70,10 @@ import, SimQN replaces Loguru's built-in stderr sink with this default format:
 
 ``{time}`` shows system time. ``sim`` shows the simulator's current time from
 ``log.install(s)`` in seconds with three decimal places, for example
-``14:30:12.345 | sim=65.123s | INFO [example:42] message``. Before a simulator is
-installed, it displays ``sim=—``. Simulation time updates as events run and does
+``[14:30:12.345] sim=65.123s | INFO [example:42] message``. Before a simulator is
+installed, the entire ``sim`` field is omitted:
+``[14:30:12.345] | INFO [example:42] message``.
+Simulation time updates as events run and does
 not wrap after 24 hours. Native Loguru calls using this formatter display the
 same two clocks. The original ``[s.tc]`` message prefix is retained internally
 for existing handlers, but omitted from the default display to avoid repetition.

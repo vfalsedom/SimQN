@@ -2,6 +2,9 @@
 
 import io
 import logging
+import subprocess
+import sys
+import textwrap
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -57,7 +60,7 @@ def test_helpers_keep_levels_formatting_and_time(messages, method, level, with_s
 
 def test_existing_exports_and_logger_identity():
     assert log.logger is logging.getLogger("qns")
-    for name in ("logger", "install", "debug", "info", "warn", "error", "critical", "monitor"):
+    for name in ("logger", "install", "configure", "debug", "info", "warn", "error", "critical", "monitor"):
         assert getattr(utils, name) is getattr(log, name)
 
 
@@ -166,8 +169,9 @@ def test_format_uses_simulation_time(messages, seconds, expected):
         loguru_logger.remove(sink)
     record = messages[0].record
     assert stream.getvalue().startswith(
-        format(record["time"], "HH:mm:ss.SSS") + f" | sim={expected} | INFO [test_log:"
+        "[" + format(record["time"], "HH:mm:ss.SSS") + f"] sim={expected} | INFO"
     )
+    assert " [test_log:" in stream.getvalue()
     assert stream.getvalue().endswith("] simulated message\n")
     assert record["extra"]["sim_time"] == expected
 
@@ -175,6 +179,8 @@ def test_format_uses_simulation_time(messages, seconds, expected):
 def test_simulation_timestamp_marks_missing_simulator(messages):
     log.info("before installation")
     assert messages[0].record["extra"]["sim_time"] == "—"
+    assert "sim=" not in str(messages[0])
+    assert "] | INFO " in str(messages[0])
 
 
 def test_simulation_timestamp_advances_with_events(messages):
@@ -208,7 +214,7 @@ def test_default_format_avoids_duplicate_time_but_preserves_legacy_message(messa
         log.info("value=%d", 7)
     finally:
         loguru_logger.remove(sink)
-    assert " | sim=65.123s | INFO " in stream.getvalue()
+    assert "] sim=65.123s | INFO " in stream.getvalue()
     assert stream.getvalue().endswith("] value=7\n")
     assert messages[0].record["message"] == "[65.123] value=7"
 
@@ -220,5 +226,92 @@ def test_native_loguru_uses_same_format_without_simulator(messages):
         loguru_logger.info("application {}", 1)
     finally:
         loguru_logger.remove(sink)
-    assert " | sim=— | INFO " in stream.getvalue()
+    assert "sim=" not in stream.getvalue()
+    assert "] | INFO " in stream.getvalue()
     assert stream.getvalue().endswith("] application 1\n")
+
+
+def _run_config_script(source):
+    # Isolate configure(), which intentionally replaces application-wide sinks.
+    return subprocess.run(
+        [sys.executable, "-B", "-c", textwrap.dedent(source)],
+        cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True, check=True,
+    )
+
+
+@pytest.mark.parametrize("output,terminal,file", [
+    ("console", True, False), ("file", False, True), ("both", True, True),
+])
+def test_configure_destinations_and_debug_level(tmp_path, output, terminal, file):
+    filename = tmp_path / "logs" / "experiment.log"
+    result = _run_config_script(f"""
+        from pathlib import Path
+        import qns.utils.log as log
+        from qns.simulator import Simulator
+
+        log.install(Simulator(65.123, 100))
+        log.configure({output!r}, Path({str(filename)!r}), level="DEBUG")
+        log.debug("debug value=%d", 7)
+        log.info("info value=%d", 8)
+    """)
+    assert result.stdout == ""
+    assert filename.exists() is file
+    destinations = []
+    if terminal:
+        destinations.append(result.stderr)
+    else:
+        assert result.stderr == ""
+    if file:
+        destinations.append(filename.read_text(encoding="utf-8"))
+    for text in destinations:
+        assert text.count("debug value=7") == 1
+        assert text.count("info value=8") == 1
+        assert "sim=65.123s" in text
+        assert "[65.123]" not in text
+        assert "\x1b[" not in text
+
+
+def test_configure_replaces_outputs_and_overwrites_files(tmp_path):
+    filename = tmp_path / "experiment.log"
+    filename.write_text("old log content\n", encoding="utf-8")
+    result = _run_config_script(f"""
+        import logging
+        import qns.utils.log as log
+
+        log.configure("file", {str(filename)!r}, level="INFO")
+        log.info("first file entry")
+        log.configure("file", {str(filename)!r}, level=logging.DEBUG)
+        log.debug("second file entry")
+        log.configure("console", level="ERROR")
+        log.info("suppressed info")
+        log.error("only terminal entry")
+    """)
+    text = filename.read_text(encoding="utf-8")
+    assert "old log content" not in text
+    assert "first file entry" not in text
+    assert text.count("second file entry") == 1
+    assert "only terminal entry" not in text
+    assert result.stderr.count("only terminal entry") == 1
+    assert "file entry" not in result.stderr
+    assert "suppressed info" not in result.stderr
+    assert "sim=" not in result.stderr
+
+
+def test_configure_invalid_arguments_preserve_existing_output():
+    result = _run_config_script("""
+        import qns.utils.log as log
+
+        log.configure("console", level="INFO")
+        for kwargs in [
+            {"output": "invalid"}, {"output": "file"}, {"output": "both", "filename": ""},
+            {"level": "invalid"}, {"level": -1}, {"level": None},
+        ]:
+            try:
+                log.configure(**kwargs)
+            except (ValueError, TypeError):
+                pass
+            else:
+                raise AssertionError("Invalid arguments should be rejected")
+        log.info("still configured")
+    """)
+    assert result.stderr.count("still configured") == 1

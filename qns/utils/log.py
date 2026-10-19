@@ -21,10 +21,12 @@ import sys
 from loguru import logger as _loguru_logger
 
 
+_SIM_FORMAT = "<green>sim={extra[sim_time]}</green> "
+
 _FORMAT = (
-    "<yellow>{time:HH:mm:ss.SSS}</yellow> | "
-    "<yellow>sim={extra[sim_time]}</yellow> | "
-    "<level>{level}</level> "
+    "<yellow>[{time:HH:mm:ss.SSS}]</yellow> "
+    + _SIM_FORMAT + "| "
+    "<level>{level:5}</level> "
     "<cyan>[{name}:{line}]</cyan> "
     "<level>{extra[display_message]}</level>"
 )
@@ -55,7 +57,8 @@ def format_record(record):
         # Keep the legacy message for other handlers, but display time only once.
         message = message[len(prefix):]
     extra["display_message"] = message
-    return _FORMAT + "\n{exception}"
+    template = _FORMAT if extra["sim_time"] != "—" else _FORMAT.replace(_SIM_FORMAT, "")
+    return template + "\n{exception}"
 
 
 class _LoguruHandler(logging.Handler):
@@ -113,6 +116,41 @@ except ValueError:
     pass
 else:
     _loguru_logger.add(sys.stderr, format=format_record)
+
+
+def configure(output="console", filename=None, level="INFO"):
+    """Configure output destinations and level in one call.
+
+    Args:
+        output (str): "console", "file", or "both". Console uses stderr.
+        filename (str or Path): required for "file" and "both"; files overwrite.
+        level (str or int): minimum level, shared by the logger and outputs.
+
+    Replaces previous Loguru outputs and preserves the installed simulator.
+    """
+    if output not in ("console", "file", "both"):
+        raise ValueError('output must be "console", "file", or "both"')
+    if output in ("file", "both") and (filename is None or filename == ""):
+        raise ValueError('filename is required for "file" or "both" output')
+    if isinstance(level, str):
+        name = {"WARN": "WARNING", "FATAL": "CRITICAL"}.get(level.upper(), level.upper())
+        level = _loguru_logger.level(name).no
+    elif not isinstance(level, int):
+        raise TypeError("level must be a level name or an integer")
+    if level < 0:
+        raise ValueError("level must not be negative")
+
+    handlers = []
+    if output in ("console", "both"):
+        handlers.append(dict(sink=sys.stderr, level=level, format=format_record))
+    if output in ("file", "both"):
+        handlers.append(dict(sink=filename, level=level, format=format_record,
+                             encoding="utf-8", colorize=False, mode="w"))
+    _loguru_logger.configure(handlers=handlers)
+    logger.setLevel(level)
+    handle.setLevel(logging.NOTSET)
+    if handle not in logger.handlers:
+        logger.addHandler(handle)
 
 
 def install(s):

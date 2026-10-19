@@ -6,6 +6,9 @@
 
 ## 2026-10-20
 
+- 后续修改：`qns/utils/log.py` 新增 `configure()`，支持终端、文件或同时输出及统一级别设置；调整时间与级别显示，未安装仿真器时隐藏仿真时间字段。
+- `qns/utils/__init__.py`：导出 `configure()`；`docs/source/tutorials.util.rst`：补充配置接口及显示格式说明；`test/test_log.py`：更新格式断言并覆盖输出目的地、文件覆盖及无效参数。
+- 后续验证：Conda `qu-code` 环境运行 `test/test_log.py` 和 `test/network/test_link_index.py`，结果为 **37 passed**；修改日期依据文件最后修改时间，检查及同步日期为北京时间 2026-10-20。
 - `qns/utils/log.py`：使用 Loguru 作为输出后端，保留标准 `logging.Logger` 接口；输出系统时间和仿真时间，保留原有日志处理器及消息格式兼容性。
 - `requirements.txt`、`setup.py`、`setup-cython.py`：新增 `loguru>=0.7,<1` 依赖。
 - `docs/source/tutorials.util.rst`：补充日志格式、仿真时钟及自定义输出配置说明，并修正监控示例。

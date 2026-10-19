@@ -15,10 +15,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from qns.utils.log import logger, debug, info, error, install, warn, critical, monitor
+from qns.utils.log import logger, debug, info, error, install, warn, critical, monitor, configure
 from qns.utils.rnd import set_seed, get_rand, get_randint, get_choice
 from qns.utils.table import format_table
 
-__all__ = ["logger", "debug", "info", "error", "install",
+__all__ = ["logger", "debug", "info", "error", "install", "configure",
            "warn", "critical", "monitor", "set_seed", "get_rand", "get_randint", "get_choice",
            "format_table"]
