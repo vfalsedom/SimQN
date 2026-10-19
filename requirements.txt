@@ -1,6 +1,7 @@
 Cython==0.29.28
 numpy
 pandas
+loguru>=0.7,<1
 matplotlib>=3.7,<4
 pylatexenc>=2.10,<3
 pytest>=8,<9

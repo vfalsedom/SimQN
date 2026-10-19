@@ -72,7 +72,7 @@ setup(
     cmdclass={'build_ext': build_ext},
     ext_modules=cythonize(ext_modules),
     setup_requires=["numpy", "cython", "pandas", "twine", "wheel"],
-    install_requires=["numpy>=1.23,<2", "pandas", "qiskit>=2.3,<3"],
+    install_requires=["numpy>=1.23,<2", "pandas", "loguru>=0.7,<1", "qiskit>=2.3,<3"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",

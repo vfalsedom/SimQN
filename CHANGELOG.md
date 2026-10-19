@@ -4,6 +4,16 @@
 
 以下初始记录的代码修改日期依据文件最后修改时间整理，不代表能够追溯全部历史修改；自本日志建立后，在每次同步时持续补充实际修改和验证结果。
 
+## 2026-10-20
+
+- `qns/utils/log.py`：使用 Loguru 作为输出后端，保留标准 `logging.Logger` 接口；输出系统时间和仿真时间，保留原有日志处理器及消息格式兼容性。
+- `requirements.txt`、`setup.py`、`setup-cython.py`：新增 `loguru>=0.7,<1` 依赖。
+- `docs/source/tutorials.util.rst`：补充日志格式、仿真时钟及自定义输出配置说明，并修正监控示例。
+- `test/test_log.py`：新增日志级别、格式化、异常信息、处理器兼容和双时钟测试。
+- 日期依据：以上文件最后修改时间为北京时间 2026-10-20；检查及同步批次同日。
+- 验证：使用 Conda `qu-code` 环境运行 `test/test_log.py` 和 `test/network/test_link_index.py`，结果为 **32 passed**。
+- 本日志随本次修改提交至 `vfalsedom/SimQN` 的 `qiskit-backend` 分支；实际推送结果以同步执行报告为准。
+
 ## 2026-10-19
 
 - 远程提交 `3459406`：`qns/network/route/dijkstra.py` 在重建路由表前执行 `route_table.clear()`，清除失效路由；`qns/entity/node/node.py` 补充文件尾空行。修改日期依据该提交的北京时间 2026-10-19。

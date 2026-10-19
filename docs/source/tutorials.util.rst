@@ -4,7 +4,10 @@ Logging and random generator
 The logging module
 -----------------------------------
 
-SimQN uses the Python logging package as the logging and data monitor tools. To providing the simulator's internal states (especially the time), SimQN warps the logging. Users can use the ``logger`` from:
+SimQN uses Loguru to output logs and monitoring data, with a standard Python
+``logging.Logger`` as a compatibility interface. Existing logging calls,
+``setLevel()``, handlers, filters, and percent-style message arguments continue
+to work. The logging helpers can include the simulator's current time:
 
 .. code-block:: Python
 
@@ -30,12 +33,63 @@ Users can set the logging level and record logs:
     log.error("error message")
     log.critical("critical message")
 
+The default handler forwards records to the application's Loguru sinks. On
+import, SimQN replaces Loguru's built-in stderr sink with this default format:
+
+.. code-block:: Python
+
+    _FORMAT = (
+        "<yellow>{time:HH:mm:ss.SSS}</yellow> | "
+        "<yellow>sim={extra[sim_time]}</yellow> | "
+        "<level>{level}</level> "
+        "<cyan>[{name}:{line}]</cyan> "
+        "<level>{extra[display_message]}</level>"
+    )
+
+``{time}`` shows system time. ``sim`` shows the simulator's current time from
+``log.install(s)`` in seconds with three decimal places, for example
+``14:30:12.345 | sim=65.123s | INFO [example:42] message``. Before a simulator is
+installed, it displays ``sim=—``. Simulation time updates as events run and does
+not wrap after 24 hours. Native Loguru calls using this formatter display the
+same two clocks. The original ``[s.tc]`` message prefix is retained internally
+for existing handlers, but omitted from the default display to avoid repetition.
+
+Use ``format_record`` when adding an application sink with this format. It
+supplies the additional fields for both SimQN and native Loguru records:
+
+.. code-block:: Python
+
+    import sys
+    from loguru import logger as loguru_logger
+    from qns.utils.log import format_record
+
+    loguru_logger.remove()
+    loguru_logger.add(sys.stderr, format=format_record)
+
+Colors are enabled automatically for terminals that support them. Custom
+application sinks are preserved. If the application has already removed the
+built-in sink, its configuration remains in control. To customize the output,
+configure Loguru in your application. For example, to retain the previous
+plain-message stdout format:
+
+.. code-block:: Python
+
+    import sys
+    from loguru import logger as loguru_logger
+
+    loguru_logger.remove()
+    loguru_logger.add(sys.stdout, format="{message}", level=0)
+
+Both ``log.logger`` and the Loguru sinks apply their own level filters. The
+original Python ``LogRecord`` is available in Loguru's
+``record["extra"]["logging_record"]``, including any custom ``extra`` fields.
+
 Finally, SimQN provides ``monitor()`` for date output. ``sep`` sets the separator, the default separator is "," (like csv files). ``with_time`` is a boolean indicating whether add a column to record the simulator's current time.
 
 .. code-block:: Python
 
-    log.monitor(data1, date2, date3, with_date = True)
-    # output: time, date1, date2, date3
+    log.monitor(data1, data2, data3, with_time=True)
+    # message: time,data1,data2,data3
 
 With the ``Timer`` entity provided by SimQN, it is easy to print the network's status periodically.
 
