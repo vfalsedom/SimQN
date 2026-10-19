@@ -6,6 +6,8 @@
 
 ## 2026-10-19
 
+- 远程提交 `3459406`：`qns/network/route/dijkstra.py` 在重建路由表前执行 `route_table.clear()`，清除失效路由；`qns/entity/node/node.py` 补充文件尾空行。修改日期依据该提交的北京时间 2026-10-19。
+- 本次同步验证：使用 Conda `qu-code` 环境运行 `test/network/test_route.py`、`test/network/test_route_ex.py` 和 `test/network/test_link_index.py`，结果为 **7 passed**。
 - `qns/network/network.py`：新增量子信道索引，提供 `get_link()`、`get_neighbors()` 和 `rebuild_link_index()`；初始化和添加信道时更新索引，支持双向查找，并保留平行信道中的首条信道。
 - `test/network/test_link_index.py`：新增拓扑索引、动态添加信道、平行信道和手动重建索引的测试。
 - `CHANGELOG.md`：建立本日志，记录当前修改及后续按日期维护的规则。
