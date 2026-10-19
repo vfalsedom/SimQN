@@ -48,6 +48,8 @@ class DijkstraRouteAlgorithm(RouteImpl):
 
     def build(self, nodes: List[QNode], channels: List[Union[QuantumChannel, ClassicChannel]]):
 
+        self.route_table.clear()
+
         for n in nodes:
             selected = []
             unselected = [u for u in nodes]

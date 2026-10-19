@@ -226,3 +226,4 @@ class QNode(Entity):
         if self.name is not None:
             return f"<node {self.name}>"
         return super().__repr__()
+
